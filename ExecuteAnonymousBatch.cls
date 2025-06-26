@@ -10,7 +10,7 @@
  *		+'\n   acc.BillingCity = \'Gnite City\';'
  *		+'\n}'
  *		+'\n update acList;';
- * ExecuteAnonymoutBatch batch = new ExecuteAnonymoutBatch('Select Id From Account',script, true);
+ * ExecuteAnonymousBatch batch = new ExecuteAnonymousBatch('Select Id From Account',script, true);
  * Database.executeBatch(batch, 100);
  * @history
  * 2017-08-02 : Enrico Murru - Original version
