@@ -26,3 +26,21 @@ Database.executeBatch(batch, 100);
 ```
 
 The job sends a completion email with all eventual errors on finish.
+
+How to create the named credentials EXECUTE_ANONYMOUS ?
+
+- create an external client application
+![image](https://github.com/user-attachments/assets/26217a49-ac18-4c14-b762-d0aa4d45bd08)
+![image](https://github.com/user-attachments/assets/b4d5ebf3-aa69-4caa-9bdf-6523ad2d4dc6)
+
+- Create an auth provider
+![image](https://github.com/user-attachments/assets/1fdbe380-3232-4d45-9df9-dc2047d1e68a)
+
+- Create the named credential
+![image](https://github.com/user-attachments/assets/b781c67e-3e67-402f-a57a-1b01ddc01aa2)
+
+
+
+
+
+
