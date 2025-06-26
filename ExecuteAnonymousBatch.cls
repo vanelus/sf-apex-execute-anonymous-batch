@@ -62,7 +62,7 @@ public class ExecuteAnonymousBatch implements Database.Batchable<SObject>, Datab
             + '};\n'
             + this.executeScript;
         String result = executeAnonymous(script);
-        if(String.isNotBlank(result)){
+        if (String.isNotBlank(result) && !result.containsIgnoreCase('Success')) {
             errors.add(idList+': '+result);
         }
     }
@@ -96,61 +96,35 @@ public class ExecuteAnonymousBatch implements Database.Batchable<SObject>, Datab
      * @param script - script to be executed (contains the ID_LIST variable)
      * @return (String) error message or null in case of success
      */
-    private static String executeAnonymous(String script){
-        String apexNS = 'http://soap.sforce.com/2006/08/apex';
-        String soapNS = 'http://schemas.xmlsoap.org/soap/envelope/';
-        String url = 'callout:'+NAMED_CREDENTIAL+'/services/Soap/s/'+API_VERSION;
-        //SOAP call gives you the possibility to get the debuglog as well
-        String body = '<soapenv:Envelope xmlns:soapenv="'+soapNS+'" xmlns:apex="'+apexNS+'">'
-            +'<soapenv:Header>'
-            +'<apex:SessionHeader>'
-            +'<apex:sessionId>{!$Credential.OAuthToken}</apex:sessionId>'
-            +'</apex:SessionHeader>'
-            +'</soapenv:Header>'
-            +'<soapenv:Body>'
-            +'<apex:executeAnonymous>'
-            +'<apex:String><![CDATA['
-            + script
-            +']]></apex:String>'
-            +'</apex:executeAnonymous>'
-            +'</soapenv:Body>'
-            +'</soapenv:Envelope>';
-        Http h = new Http();
-        HttpRequest request = new HttpRequest();
-        request.setTimeout(120000);
-        request.setMethod('POST');
-        request.setHeader('Content-Type','text/xml; charset=utf-8');
-        request.setHeader('SOAPAction','executeAnonymous');
-        
-        request.setEndpoint(url);
-        request.setBody(body);
-        try{
-            HttpResponse resp = h.send(request);
-            if(resp.getStatusCode() != 200){
-                return 'Unexpected server response ['+resp.getStatusCode()+']: '+resp.getBody();
-            }
-            
-            Dom.Document doc = resp.getBodyDocument();
-            Dom.XMLNode rootNode = doc.getRootElement();
-            Dom.XMLNode bodyNode = rootNode.getChildElement('Body', soapNS);
-            Dom.XMLNode executeAnonymousResponseNode = bodyNode.getChildElement('executeAnonymousResponse', apexNS);
-            Dom.XMLNode resultNode = executeAnonymousResponseNode.getChildElement('result', apexNS);
-            String success = resultNode.getChildElement('success',apexNS).getText();
-            if(success != 'true'){
-                String rslt = (resultNode.getChildElement('exceptionMessage', apexNS).getTExt() +' -- '
-                    + resultNode.getChildElement('exceptionStackTrace',apexNS).getText())
-                    + ((resultNode.getChildElement('compiled',apexNS).getText() == 'false')?
-                    	('Compilation problem: '+resultNode.getChildElement('compileProblem',apexNS).getText()
-                    	+ ' Line: '+resultNode.getChildElement('line',apexNS).getText()
-                    	+ ' Column: '+resultNode.getChildElement('column',apexNS).getText()):'');
-                return rslt;
-            }
-            
-            return null;
-        }catch(Exception e){
-            return 'Fatal exception on batch code: '+e.getMessage()+' | '+e.getStackTraceString().replaceAll('\\n',' >> ');
-        }
+private static String executeAnonymous(String script) {
+    String encodedScript = EncodingUtil.urlEncode(script, 'UTF-8');
+
+    HttpRequest req = new HttpRequest();
+    req.setEndpoint('callout:EXECUTE_ANONYMOUS/services/data/v60.0/tooling/executeAnonymous/?anonymousBody=' + encodedScript);
+    req.setMethod('GET');
+
+    Http http = new Http();
+    HttpResponse res = http.send(req);
+
+    if (res.getStatusCode() != 200) {
+        System.debug('Erreur HTTP : ' + res.getStatusCode());
+        System.debug('Body : ' + res.getBody());
+        return 'Erreur HTTP ' + res.getStatusCode() + ' : ' + res.getBody();
     }
+
+    // Déserialisation basique
+    Map<String, Object> result = (Map<String, Object>) JSON.deserializeUntyped(res.getBody());
+    Boolean compiled = (Boolean) result.get('compiled');
+    Boolean success = (Boolean) result.get('success');
+
+    if (compiled && success) {
+        return 'Success';
+    } else {
+        return 'Failure: ' + res.getBody();
+    }
+}
+
+
     
     /**
      * Sends an email to current user
